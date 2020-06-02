@@ -7,8 +7,8 @@ use regex::Regex;
 
 #[derive(Debug)]
 struct AlsaPort {
+    id: u32,
     name: String,
-    port: u32,
 }
 
 #[derive(Debug)]
@@ -35,6 +35,7 @@ enum ClientStatus {
 struct Client {
     name: String,
     status: ClientStatus,
+    alsa: AlsaInfo,
     ports: Vec<AlsaPort>,
 }
 
@@ -53,18 +54,72 @@ fn main() {
     f.read_to_string(&mut contents)
         .expect("unable to read file");
 
-    println!("Acconnect: \n");
-    for line in contents.lines() {
-        let re = Regex::new(r"^client (\d+): '(.+)' \[type=(\S+),card=(\d+)\]$").unwrap();
+    let re = Regex::new(r"client ").unwrap();
+    let rooms: Vec<_> = re.split(&contents).collect();
 
-        for cap in re.captures_iter(line) {
-            let id = (&cap[1]).parse().unwrap();
-            let name = String::from(&cap[2]);
-            let kind = match &cap[3] {
+    for room in rooms {
+        let mut ports : Vec<AlsaPort> = Vec::new();
+
+        let mut lines = room.lines();
+
+        // First row should be the client definition
+        let alsa_client = match lines.next() {
+            Some(line) => match_client(line),
+            None => None
+        };
+
+        // Next lines are ports
+        match &alsa_client {
+            Some(_found_client) => {
+                for line in room.lines() {
+                    let alsa_port = match_port(line);
+                    match alsa_port {
+                        Some(found_port) => {
+                            ports.push(found_port);
+                        },
+                        None => ()
+                    }
+                }
+            },
+            None => ()                
+        }
+
+        let client = match alsa_client {
+            Some(found) => {
+                let client = Client {
+                    name : String::from(&found.name),
+                    status: ClientStatus::Unavailable,
+                    alsa: found,
+                    ports: ports };
+                Some (client)
+                },
+            None => None
+        };
+
+        match client{
+            Some(found) => println!("{:#?}", found),
+            None => ()
+        }
+
+    }
+
+    // Keep status as RE match type (client/port) and add ports to current client.
+    // Create new client if status is client.
+}
+
+fn match_client(line: &str) -> Option<AlsaInfo> {
+    let re = Regex::new(r"^(\d+): '(.+)' \[type=(\S+),card=(\d+)\]$").unwrap();
+    let caps = re.captures(line);
+
+    match caps {
+        Some(caps) => {
+            let id = (&caps[1]).parse().unwrap();
+            let name = String::from(&caps[2]);
+            let kind = match &caps[3] {
                 "kernel" => AlsaKind::Kernel,
                 _ => AlsaKind::Unknown,
             };
-            let card = (&cap[4]).parse().unwrap();
+            let card = (&caps[4]).parse().unwrap();
 
             let client = AlsaInfo {
                 id,
@@ -72,34 +127,25 @@ fn main() {
                 kind,
                 card,
             };
-            println!("{:?}", client);
+
+            Some(client)
         }
+        None => None,
     }
+}
 
-    // Split file in rooms
-    // Parse rooms: client (first line) + ports (all the rest)
-    // see https://doc.rust-lang.org/std/primitive.str.html#method.split
-    let re = Regex::new(r"client ").unwrap();
+fn match_port(line: &str) -> Option<AlsaPort> {
+    let re = Regex::new(r"^\s+(\d) '(.+?)\s*'$").unwrap();
+    let caps = re.captures(line);
 
-    // let replaced = contents.replace("\n", "$");
+    match caps {
+        Some(caps) => {
+            let id = (&caps[1]).parse().unwrap();
+            let name = String::from(&caps[2]);
 
-    let rooms: Vec<_> = re.split(&contents).collect();
-    // println!("{:?}", rooms);
-
-    for room in rooms {
-        println!("New Room");
-        for line in room.lines() {
-            // match client
-            // match port
-            println!("{:?}", line);
+            let alsa_port = AlsaPort { id, name };
+            Some(alsa_port)
         }
-
+        None => None,
     }
-
-    // let re = Regex::new(r"^client").unwrap();
-    // let rooms: Vec<&str> = re.split(&contents).collect();
-    // let rooms_alt = test.contains(&re);
-
-    // Keep status as RE match type (client/port) and add ports to current client.
-    // Create new client if status is client.
 }
