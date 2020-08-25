@@ -5,6 +5,21 @@ use std::io::Read;
 extern crate regex;
 use regex::Regex;
 
+extern crate itertools;
+use itertools::Itertools;
+
+#[derive(Debug)]
+struct Port {
+    client: u32,
+    port: u32,
+}
+
+#[derive(Debug)]
+struct Connection {
+    src: Port,
+    dst: Port,
+}
+
 #[derive(Debug)]
 struct AlsaPort {
     id: u32,
@@ -57,54 +72,79 @@ fn main() {
     let re = Regex::new(r"client ").unwrap();
     let rooms: Vec<_> = re.split(&contents).collect();
 
+    let mut connections: Vec<Connection> = Vec::new();
+    let mut clients: Vec<Client> = Vec::new();
+
     for room in rooms {
-        let mut ports : Vec<AlsaPort> = Vec::new();
+        let mut ports: Vec<AlsaPort> = Vec::new();
 
         let mut lines = room.lines();
 
-        // First row should be the client definition
+        // First row should be the client definition...
         let alsa_client = match lines.next() {
             Some(line) => match_client(line),
-            None => None
+            None => None,
         };
 
-        // Next lines are ports
-        match &alsa_client {
-            Some(_found_client) => {
-                for line in room.lines() {
-                    let alsa_port = match_port(line);
-                    match alsa_port {
-                        Some(found_port) => {
-                            ports.push(found_port);
-                        },
-                        None => ()
+        // ... it is:
+        if let Some(found_client) = alsa_client {
+            // Next lines are ports
+            // Get line and the next one to check for connection
+            for (_idx, (line, next)) in lines.tuple_windows().enumerate() {
+                if let Some(found_port) = match_port(line) {
+                    // Look for connections, too.
+                    if let Some(dst) = match_connection(next) {
+                        let src = Port {
+                            client: found_client.id,
+                            port: found_port.id,
+                        };
+
+                        let connection = Connection { src, dst };
+                        connections.push(connection);
                     }
+                    ports.push(found_port);
                 }
-            },
-            None => ()                
+            }
+
+            let client = Client {
+                name: String::from(&found_client.name),
+                status: ClientStatus::Available,
+                alsa: found_client,
+                ports,
+            };
+
+            clients.push(client);
         }
 
-        let client = match alsa_client {
-            Some(found) => {
-                let client = Client {
-                    name : String::from(&found.name),
-                    status: ClientStatus::Unavailable,
-                    alsa: found,
-                    ports: ports };
-                Some (client)
-                },
-            None => None
-        };
-
-        match client{
-            Some(found) => println!("{:#?}", found),
-            None => ()
-        }
-
+        // TODO/ALT: return port collection instead of mutating
+        // match &alsa_client {
+        //     Some(found_client) => {
+        //         for (_idx, (line, next)) in lines.tuple_windows().enumerate() {
+        //             match match_port(line) {
+        //                 Some(found_port) => {
+        //                     match match_connection(next) {
+        //                         Some(dst) => {
+        //                             let src = Port {
+        //                                 client: found_client.id,
+        //                                 port: found_port.id,
+        //                             };
+        //                             let connection = Connection { src, dst };
+        //                             connections.push(connection);
+        //                         }
+        //                         None => (),
+        //                     };
+        //                     ports.push(found_port);
+        //                 }
+        //                 None => (),
+        //             }
+        //         }
+        //     }
+        //     None => (),
+        // }
     }
 
-    // Keep status as RE match type (client/port) and add ports to current client.
-    // Create new client if status is client.
+    clients.iter().for_each(&|cli| println!("{:#?}", cli));
+    connections.iter().for_each(&|conn| println!("{:#?}", conn));
 }
 
 fn match_client(line: &str) -> Option<AlsaInfo> {
@@ -145,6 +185,22 @@ fn match_port(line: &str) -> Option<AlsaPort> {
 
             let alsa_port = AlsaPort { id, name };
             Some(alsa_port)
+        }
+        None => None,
+    }
+}
+
+fn match_connection(line: &str) -> Option<Port> {
+    let re = Regex::new(r"^\s+Connecting To: (\d+):(\d+)$").unwrap();
+    let caps = re.captures(line);
+
+    match caps {
+        Some(caps) => {
+            let client = (&caps[1]).parse().unwrap();
+            let port = (&caps[2]).parse().unwrap();
+
+            let port = Port { client, port };
+            Some(port)
         }
         None => None,
     }
