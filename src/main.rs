@@ -7,7 +7,7 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
 
-    let filename = &args[1];
+    let filename = args[1].clone();
 
     println!("In file {}", filename);
 

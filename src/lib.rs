@@ -53,7 +53,7 @@ pub struct Client {
     ports: Vec<AlsaPort>,
 }
 
-pub fn parse_aconnect(filename: &String) -> (Vec<Client>, Vec<Connection>) {
+pub fn parse_aconnect(filename: String) -> (Vec<Client>, Vec<Connection>) {
     let mut f = File::open(filename).expect("unable to open file");
 
     let mut contents = String::new();
@@ -120,13 +120,13 @@ fn match_client(line: &str) -> Option<AlsaInfo> {
 
     match caps {
         Some(caps) => {
-            let id = (&caps[1]).parse().unwrap();
+            let id = caps[1].parse().unwrap();
             let name = String::from(&caps[2]);
             let kind = match &caps[3] {
                 "kernel" => AlsaKind::Kernel,
                 _ => AlsaKind::Unknown,
             };
-            let card = (&caps[4]).parse().unwrap();
+            let card = caps[4].parse().unwrap();
 
             let client = AlsaInfo {
                 id,
@@ -147,7 +147,7 @@ fn match_port(line: &str) -> Option<AlsaPort> {
 
     match caps {
         Some(caps) => {
-            let id = (&caps[1]).parse().unwrap();
+            let id = caps[1].parse().unwrap();
             let name = String::from(&caps[2]);
 
             let alsa_port = AlsaPort { id, name };
@@ -163,8 +163,8 @@ fn match_connection(line: &str) -> Option<Port> {
 
     match caps {
         Some(caps) => {
-            let client = (&caps[1]).parse().unwrap();
-            let port = (&caps[2]).parse().unwrap();
+            let client = caps[1].parse().unwrap();
+            let port = caps[2].parse().unwrap();
 
             let port = Port { client, port };
             Some(port)
