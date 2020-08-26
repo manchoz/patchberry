@@ -1,19 +1,35 @@
-use std::env;
+mod commands;
 
-extern crate patchberry;
+extern crate structopt;
+use structopt::StructOpt;
 
-fn main() {
-    println!("Hello, world!");
-
-    let args: Vec<String> = env::args().collect();
-
-    let filename = args[1].clone();
-
-    println!("In file {}", filename);
-
-    let (clients, connections) = patchberry::parse_aconnect(filename);
-
-    clients.iter().for_each(&|cli| println!("{:#?}", cli));
-    connections.iter().for_each(&|conn| println!("{:#?}", conn));
+#[derive(StructOpt, Debug)]
+#[structopt(about = "an USB MIDI patchbay")]
+enum Opt {
+    #[structopt(about = "Refresh info from 'aconnect'")]
+    Refresh {
+        #[structopt(short, help = "refresh from specified file")]
+        filename: Option<String>,
+    },
+    #[structopt(about = "Load patchbay configuration")]
+    Load {
+        #[structopt(short, help = "load from specified file")]
+        filename: String,
+    },
 }
 
+fn main() {
+    let opt = Opt::from_args();
+
+    match opt {
+        Opt::Refresh { filename } => {
+            println!("Refreshing...");
+            commands::refresh(filename);
+        }
+
+        Opt::Load { filename } => {
+            println!("Loading...");
+            println!("{}", filename);
+        }
+    }
+}
