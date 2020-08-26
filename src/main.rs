@@ -3,7 +3,7 @@ mod commands;
 extern crate structopt;
 use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt)]
 #[structopt(about = "an USB MIDI patchbay")]
 enum Opt {
     #[structopt(about = "Refresh info from 'aconnect'")]

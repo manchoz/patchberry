@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use std::process::Command;
 
 pub fn refresh(filename: Option<String>) -> () {
     let (clients, connections) = match filename {
@@ -14,8 +15,15 @@ pub fn refresh(filename: Option<String>) -> () {
             patchberry::parse_aconnect(contents)
         }
         None => {
-            // Parse from aconnect subprocess
-            (Vec::new(), Vec::new())
+            // TODO - Parse from an 'aconnect' subprocess
+            let output = Command::new("ssh")
+                .arg("pizerow.local")
+                .args(&["aconnect", "-l"])
+                .output()
+                .expect("failed to execute process");
+            let contents = String::from_utf8(output.stdout).expect("unable to read output");
+            // (Vec::new(), Vec::new())
+            patchberry::parse_aconnect(contents)
         },
     };
 
