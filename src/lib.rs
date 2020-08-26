@@ -84,7 +84,7 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
         if let Some(found_client) = alsa_client {
             // Next lines are ports
             // Get line and the next one to check for connection
-            for (_idx, (line, next)) in lines.tuple_windows().enumerate() {
+            for (line, next) in lines.tuple_windows() {
                 if let Some(found_port) = match_port(line) {
                     // Look up for connection in the next line
                     if let Some(dst) = match_connection(next) {
