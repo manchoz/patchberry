@@ -1,6 +1,3 @@
-use std::fs::File;
-use std::io::Read;
-
 extern crate regex;
 use regex::Regex;
 
@@ -53,12 +50,7 @@ pub struct Client {
     ports: Vec<AlsaPort>,
 }
 
-pub fn parse_aconnect(filename: String) -> (Vec<Client>, Vec<Connection>) {
-    let mut f = File::open(filename).expect("unable to open file");
-
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)
-        .expect("unable to read file");
+pub fn parse_aconnect(contents: String) -> (Vec<Client>, Vec<Connection>) {
 
     let re = Regex::new(r"client ").unwrap();
     let rooms: Vec<_> = re.split(&contents).collect();
