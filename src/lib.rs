@@ -51,7 +51,6 @@ pub struct Client {
 }
 
 pub fn parse_aconnect(contents: String) -> (Vec<Client>, Vec<Connection>) {
-
     let re = Regex::new(r"client ").unwrap();
     let rooms: Vec<_> = re.split(&contents).collect();
 
@@ -64,7 +63,6 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
 
     for room in rooms {
         let mut lines = room.lines();
-        let mut ports: Vec<AlsaPort> = Vec::new();
 
         // First row should be the client definition...
         let alsa_client = match lines.next() {
@@ -72,25 +70,21 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
             None => None,
         };
 
-        // ...ok, it is:
-        if let Some(found_client) = alsa_client {
-            // Next lines are ports
-            // Get line and the next one to check for connection
-            for (line, next) in lines.tuple_windows() {
-                if let Some(found_port) = match_port(line) {
-                    // Look up for connection in the next line
-                    if let Some(dst) = match_connection(next) {
-                        let src = Port {
-                            client: found_client.id,
-                            port: found_port.id,
-                        };
+        // Next lines are ports
 
-                        let connection = Connection { src, dst };
-                        connections.push(connection);
-                    }
-                    ports.push(found_port);
-                }
-            }
+        // Look for connections
+        if let Some(found_client) = &alsa_client {
+            // Get line and the next one
+            lines
+                .clone()
+                .tuple_windows()
+                .filter_map(|(line, next)| match_port_connection(&found_client, line, next))
+                .for_each(|conn| connections.push(conn));
+        }
+
+        // Look for ports
+        if let Some(found_client) = alsa_client {
+            let ports: Vec<AlsaPort> = lines.filter_map(|line| match_port(line)).collect();
 
             let client = Client {
                 name: String::from(&found_client.name),
@@ -161,6 +155,22 @@ fn match_connection(line: &str) -> Option<Port> {
             let port = Port { client, port };
             Some(port)
         }
+        None => None,
+    }
+}
+
+fn match_port_connection(client: &AlsaInfo, line: &str, next: &str) -> Option<Connection> {
+    match match_port(line) {
+        Some(src) => match match_connection(next) {
+            Some(dst) => Some(Connection {
+                src: Port {
+                    client: client.id,
+                    port: src.id,
+                },
+                dst,
+            }),
+            None => None,
+        },
         None => None,
     }
 }
