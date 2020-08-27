@@ -78,13 +78,14 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
             lines
                 .clone()
                 .tuple_windows()
-                .filter_map(|(line, next)| match_port_connection(&found_client, line, next))
+                .filter(|(_, next)| next.contains("Connecting To"))
+                .flat_map(|(line, next)| get_port_connections(&found_client, line, next))
                 .for_each(|conn| connections.push(conn));
         }
 
         // Look for ports
         if let Some(found_client) = alsa_client {
-            let ports: Vec<AlsaPort> = lines.filter_map(|line| match_port(line)).collect();
+            let ports: Vec<AlsaPort> = lines.filter_map(|line| get_port(line)).collect();
 
             let client = Client {
                 name: String::from(&found_client.name),
@@ -127,7 +128,7 @@ fn match_client(line: &str) -> Option<AlsaInfo> {
     }
 }
 
-fn match_port(line: &str) -> Option<AlsaPort> {
+fn get_port(line: &str) -> Option<AlsaPort> {
     let re = Regex::new(r"^\s+(\d) '(.+?)\s*'$").unwrap();
     let caps = re.captures(line);
 
@@ -143,34 +144,32 @@ fn match_port(line: &str) -> Option<AlsaPort> {
     }
 }
 
-fn match_connection(line: &str) -> Option<Port> {
-    let re = Regex::new(r"^\s+Connecting To: (\d+):(\d+)$").unwrap();
-    let caps = re.captures(line);
-
-    match caps {
-        Some(caps) => {
-            let client = caps[1].parse().unwrap();
-            let port = caps[2].parse().unwrap();
-
-            let port = Port { client, port };
-            Some(port)
-        }
-        None => None,
-    }
+fn get_dst_ports(line: &str) -> Vec<Port> {
+    let ports_re = Regex::new(r"(?:(\d+):(\d+))").unwrap();
+    ports_re
+        .captures_iter(line)
+        .map(|cap| Port {
+            client: cap[1].parse().unwrap(),
+            port: cap[2].parse().unwrap(),
+        })
+        .collect()
 }
 
-fn match_port_connection(client: &AlsaInfo, line: &str, next: &str) -> Option<Connection> {
-    match match_port(line) {
-        Some(src) => match match_connection(next) {
-            Some(dst) => Some(Connection {
+fn get_port_connections(client: &AlsaInfo, line: &str, next: &str) -> Vec<Connection> {
+    match get_port(line) {
+        Some(src) => get_dst_ports(next)
+            .iter()
+            .map(|dst| Connection {
                 src: Port {
                     client: client.id,
                     port: src.id,
                 },
-                dst,
-            }),
-            None => None,
-        },
-        None => None,
+                dst: Port {
+                    client: dst.client,
+                    port: dst.port,
+                },
+            })
+            .collect(),
+        None => vec![],
     }
 }
