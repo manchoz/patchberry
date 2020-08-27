@@ -5,6 +5,13 @@ extern crate itertools;
 use itertools::Itertools;
 
 #[derive(Debug)]
+pub struct Card {
+    id: u32,
+    usb: String,
+    name: String,
+}
+
+#[derive(Debug)]
 struct Port {
     client: u32,
     port: u32,
@@ -25,6 +32,7 @@ struct AlsaPort {
 #[derive(Debug)]
 enum AlsaKind {
     Kernel,
+    User,
     Unknown,
 }
 
@@ -111,6 +119,7 @@ fn match_client(line: &str) -> Option<AlsaInfo> {
             let name = String::from(&caps[2]);
             let kind = match &caps[3] {
                 "kernel" => AlsaKind::Kernel,
+                "user" => AlsaKind::User,
                 _ => AlsaKind::Unknown,
             };
             let card = caps[4].parse().unwrap();
@@ -172,4 +181,30 @@ fn get_port_connections(client: &AlsaInfo, line: &str, next: &str) -> Vec<Connec
             .collect(),
         None => vec![],
     }
+}
+
+pub fn parse_cards(contents: String) -> Vec<Card> {
+    fn get_usb_port(line: String) -> Option<Card> {
+        let re =
+            Regex::new(r"^\s+(\d)\s+\[(.+?)\s*\]: USB-Audio - .+usb-\d+\.(usb-.+),.*$").unwrap();
+        let caps = re.captures(&line);
+
+        match caps {
+            Some(caps) => {
+                let id = caps[1].parse().unwrap();
+                let usb = String::from(&caps[2]);
+                let name = String::from(&caps[3]);
+
+                Some(Card { id, usb, name })
+            }
+            None => None,
+        }
+    }
+
+    contents
+        .lines()
+        .tuples()
+        .map(|(a, b)| [a, b].join(""))
+        .filter_map(|line| get_usb_port(line))
+        .collect()
 }

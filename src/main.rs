@@ -11,10 +11,17 @@ enum Opt {
         #[structopt(short, help = "refresh from specified file")]
         filename: Option<String>,
     },
+
     #[structopt(about = "Load patchbay configuration")]
     Load {
         #[structopt(short, help = "load from specified file")]
         filename: String,
+    },
+
+    #[structopt(about = "Refresh Alsa Card - USB")]
+    Cards {
+        #[structopt(short, help = "load from specified file")]
+        filename: Option<String>,
     },
 }
 
@@ -30,6 +37,11 @@ fn main() {
         Opt::Load { filename } => {
             println!("Loading...");
             println!("{}", filename);
+        }
+
+        Opt::Cards { filename } => {
+            println!("Update Cards...");
+            commands::cards(filename);
         }
     }
 }
