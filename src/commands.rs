@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Read;
 use std::process::Command;
 
-pub fn refresh(filename: Option<String>) -> () {
+pub fn refresh(filename: Option<String>) {
     let contents = match filename {
         Some(filename) => {
             let mut f = File::open(filename).expect("unable to open file");
@@ -30,7 +30,7 @@ pub fn refresh(filename: Option<String>) -> () {
     connections.iter().for_each(&|conn| println!("{:#?}", conn));
 }
 
-pub fn cards(filename: Option<String>) -> () {
+pub fn cards(filename: Option<String>) {
     let contents = match filename {
         Some(filename) => {
             let mut f = File::open(filename).expect("unable to open file");

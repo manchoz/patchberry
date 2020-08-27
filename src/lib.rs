@@ -23,6 +23,21 @@ pub struct Connection {
     dst: Port,
 }
 
+impl Connection {
+    fn new(src_client: u32, src_port: u32, dst_client: u32, dst_port: u32) -> Connection {
+        Connection {
+            src: Port {
+                client: src_client,
+                port: src_port,
+            },
+            dst: Port {
+                client: dst_client,
+                port: dst_port,
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
 struct AlsaPort {
     id: u32,
@@ -82,12 +97,18 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
 
         // Look for connections
         if let Some(found_client) = &alsa_client {
+            let connection_for_client = move |src_port: u32, dst_client: u32, dst_port: u32| {
+                Connection::new(found_client.id, src_port, dst_client, dst_port)
+            };
+            let get_port_connections =
+                move |(line, next)| get_port_connections(&connection_for_client, line, next);
+                
             // Get line and the next one
             lines
                 .clone()
                 .tuple_windows()
                 .filter(|(_, next)| next.contains("Connecting To"))
-                .flat_map(|(line, next)| get_port_connections(&found_client, line, next))
+                .flat_map(get_port_connections)
                 .for_each(|conn| connections.push(conn));
         }
 
@@ -164,20 +185,15 @@ fn get_dst_ports(line: &str) -> Vec<Port> {
         .collect()
 }
 
-fn get_port_connections(client: &AlsaInfo, line: &str, next: &str) -> Vec<Connection> {
+fn get_port_connections(
+    build_connection: &dyn Fn(u32, u32, u32) -> Connection,
+    line: &str,
+    next: &str,
+) -> Vec<Connection> {
     match get_port(line) {
         Some(src) => get_dst_ports(next)
             .iter()
-            .map(|dst| Connection {
-                src: Port {
-                    client: client.id,
-                    port: src.id,
-                },
-                dst: Port {
-                    client: dst.client,
-                    port: dst.port,
-                },
-            })
+            .map(|dst| build_connection(src.id, dst.client, dst.port))
             .collect(),
         None => vec![],
     }
@@ -205,6 +221,6 @@ pub fn parse_cards(contents: String) -> Vec<Card> {
         .lines()
         .tuples()
         .map(|(a, b)| [a, b].join(""))
-        .filter_map(|line| get_usb_port(line))
+        .filter_map(get_usb_port)
         .collect()
 }
