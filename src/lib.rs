@@ -4,6 +4,11 @@ use regex::Regex;
 extern crate itertools;
 use itertools::Itertools;
 
+use std::fs::File;
+use std::io::Read;
+
+use std::process::Command;
+
 #[derive(Debug)]
 pub struct Card {
     id: u32,
@@ -223,4 +228,26 @@ pub fn parse_cards(contents: String) -> Vec<Card> {
         .map(|(a, b)| [a, b].join(""))
         .filter_map(get_usb_port)
         .collect()
+}
+
+pub fn get_contents_from_file(filename: String) -> String {
+    let mut f = File::open(filename).expect("unable to open file");
+
+    let mut contents = String::new();
+    f.read_to_string(&mut contents)
+        .expect("unable to read file");
+
+    contents
+}
+
+pub fn get_contents_from_pizero(args: &[&str]) -> String where {
+    let output = Command::new("ssh")
+        .arg("pizerow.local")
+        .args(args)
+        .output()
+        .expect("failed to execute process");
+
+    let contents = String::from_utf8(output.stdout).expect("unable to read output");
+
+    contents
 }
