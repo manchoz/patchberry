@@ -102,7 +102,7 @@ fn parse_aconnect_rooms(rooms: Vec<&str>) -> (Vec<Client>, Vec<Connection>) {
             };
             let get_port_connections =
                 move |(line, next)| get_port_connections(&connection_for_client, line, next);
-                
+
             // Get line and the next one
             lines
                 .clone()

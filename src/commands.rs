@@ -20,14 +20,18 @@ pub fn refresh(filename: Option<String>) {
                 .output()
                 .expect("failed to execute process");
             String::from_utf8(output.stdout).expect("unable to read output")
-            
         }
     };
 
     let (clients, connections) = patchberry::parse_aconnect(contents);
-    
-    clients.iter().for_each(&|cli| println!("{:#?}", cli));
-    connections.iter().for_each(&|conn| println!("{:#?}", conn));
+
+    for client in clients {
+        println!("{:#?}", client)
+    }
+
+    for conn in connections {
+        println!("{:#?}", conn)
+    }
 }
 
 pub fn cards(filename: Option<String>) {
@@ -37,8 +41,8 @@ pub fn cards(filename: Option<String>) {
 
             let mut contents = String::new();
             f.read_to_string(&mut contents)
-                .expect("unable to read file");     
-            
+                .expect("unable to read file");
+
             contents
         }
         None => {
@@ -53,5 +57,7 @@ pub fn cards(filename: Option<String>) {
 
     let cards = patchberry::parse_cards(contents);
 
-    cards.iter().for_each(&|conn| println!("{:#?}", conn));
+    for card in cards {
+        println!("{:#?}", card);
+    }
 }
